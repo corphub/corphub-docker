@@ -15,8 +15,6 @@ services:
     image: corphub-frontend:latest
     networks:
       - kong-net
-    ports:
-      - "10001:10001"
     environment:
       NUXT_PORT: 10001
     depends_on:
@@ -38,16 +36,21 @@ services:
       POSTGRES_PASSWORD:
 
   kong:
-    image: kong:1.3.0rc1-centos-oidc
+    image: kong:1.3.0-alpine-oidc
     depends_on:
       - kong-db
+      #- dockerhost
     networks:
       - kong-net
+    links:
+      - keycloak
     ports:
       - "8000:8000" # Listener
       - "8001:8001" # Admin API
       - "8443:8443" # Listener  (SSL)
       - "8444:8444" # Admin API (SSL)
+    #links:
+    #  - corphub-frontend
     extra_hosts:
       - "outside:192.168.178.230"
     environment:
@@ -66,8 +69,6 @@ services:
   elasticsearch:
     image: elasticsearch:5
     command: elasticsearch
-    depends_on:
-      - kong
     networks:
       - kong-net
     environment:
@@ -120,9 +121,97 @@ services:
     links:
       - elasticsearch
 
+#  keycloak-db:
+#    image: postgres:9.6
+#    volumes:
+#      - keycloak-datastore:/var/lib/postresql/data
+#    networks:
+#      - keycloak-net
+#    ports:
+#      - "25432:5432"
+#    environment:
+#      POSTGRES_DB:       keycloak
+#      POSTGRES_USER:     keycloak
+#      POSTGRES_PASSWORD: password
+#
+#  keycloak:
+#    image: jboss/keycloak:7.0.0
+#    #depends_on:
+#  #    - keycloak-db
+#    networks:
+#      - keycloak-net
+#      - kong-net
+#    ports:
+#      - "8180:8080"
+#    command: -b 0.0.0.0 -Dkeycloak.migration.strategy=validate
+#    environment:
+#      DB_VENDOR:   POSTGRES
+#      DB_ADDR:     keycloak-db
+#      DB_PORT:     5432
+#      DB_DATABASE: keycloak
+#      DB_USER:     keycloak
+#      DB_PASSWORD: password
+#      KEYCLOAK_USER:     admin
+#      KEYCLOAK_PASSWORD: admin
+
+  mysql:
+    image: mysql:5.7
+    volumes:
+      - mysql_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: keycloak
+      MYSQL_USER: keycloak
+      MYSQL_PASSWORD: password
+
+  keycloak:
+    image: jboss/keycloak
+    environment:
+      DB_VENDOR: MYSQL
+      DB_ADDR: mysql
+      DB_DATABASE: keycloak
+      DB_USER: keycloak
+      DB_PASSWORD: password
+      KEYCLOAK_USER: admin
+      KEYCLOAK_PASSWORD: admin
+      # Uncomment the line below if you want to specify JDBC parameters. The parameter below is just an example, and it shouldn't be used in production without knowledge. It is highly recommended that you read the MySQL JDBC driver documentation in order to use it.
+      #JDBC_PARAMS: "connectTimeout=30000"
+    ports:
+      - "8180:8080"
+    depends_on:
+      - mysql
+
+  konga:
+    image: pantsel/konga:latest
+    depends_on:
+      - kong
+    networks:
+      - kong-net
+    ports:
+      - "1337:1337" # konga
+    environment:
+      DB_ADAPTER: postgres
+      DB_HOST: kong-db
+      DB_PORT: '5432'
+      DB_USER: kong
+      DB_DATABASE: api-gw
+      NODE_ENV: development
+
+  #dockerhost:
+  #  networks:
+  #    - kong-net
+  #  image: qoomon/docker-host
+  #  cap_add: [ 'NET_ADMIN', 'NET_RAW' ]
+  #  mem_limit: 8M
+  #  restart: on-failure
+
 networks:
   kong-net:
+  keycloak-net:
+
 
 volumes:
   kong-datastore:
   elasticsearch:
+  keycloak-datastore:
+  mysql_data:
