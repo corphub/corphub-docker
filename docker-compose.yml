@@ -1,7 +1,7 @@
 version: "2"
 services:
   corphub-backend:
-    image: corphub-backend:latest
+    image: corphub/corphub-backend:latest
     networks:
       - kong-net
     ports:
@@ -12,15 +12,16 @@ services:
       - elasticsearch
 
   corphub-frontend:
-    image: corphub-frontend:latest
+    image: corphub/corphub-frontend:1.10.0
     networks:
       - kong-net
     environment:
       NUXT_PORT: 10001
-    depends_on:
-      - corphub-backend
-    links:
-      - corphub-backend
+      elastic_search_host: http://elasticsearch-service:9200
+    #depends_on:
+    #  - corphub-backend
+    #links:
+    #  - corphub-backend
 
   kong-db:
     image: postgres:9.6

@@ -1,0 +1,139 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch-deployment
+  labels:
+    app: elasticsearch-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elasticsearch-app
+  template:
+    metadata:
+      labels:
+        app: elasticsearch-app
+    spec:
+      initContainers:
+        - name: set-vm-max-map-count
+          image: busybox
+          imagePullPolicy: IfNotPresent
+          command: ["sysctl", "-w", "vm.max_map_count=262144"]
+          securityContext:
+            privileged: true
+      containers:
+        - name: elasticsearch-app
+          image: elasticsearch:5
+          ports:
+            - containerPort: 9200
+            - containerPort: 9300
+          volumeMounts:
+            - name: elasticsearch-storage
+              mountPath: /usr/share/elasticsearch/data
+          env:
+            - name: http.host
+              value: "0.0.0.0"
+            - name: http.cors.enabled
+              value: "true"
+            - name: http.cors.allow-credentials
+              value: "true"
+            - name: http.cors.allow-origin
+              value: "*"
+            - name: http.cors.allow-headers
+              value: "X-Requested-With, X-Auth-Token, Content-Type, Content-Length, Authorization, Access-Control-Allow-Headers, Accept"
+      volumes:
+        - name: elasticsearch-storage
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch-service
+spec:
+  selector:
+    app: elasticsearch-app
+  ports:
+    - name: "9200"
+      port: 9200
+      targetPort: 9200
+      nodePort: 30009
+    - name: "9300"
+      port: 9300
+      targetPort: 9300
+      nodePort: 30010
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: corphub-backend-deployment
+  labels:
+    app: corphub-backend-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: corphub-backend-app
+  template:
+    metadata:
+      labels:
+        app: corphub-backend-app
+    spec:
+      containers:
+        - name: corphub-backend-app
+          image: corphub/corphub-backend
+          ports:
+            - containerPort: 8082
+          env:
+            - name: spring.jpa.properties.hibernate.search.default.elasticsearch.host
+              value: "elasticsearch-service:9200"
+            - name: spring.profiles.active
+              value: "dev"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: corphub-backend-service
+spec:
+  selector:
+    app: corphub-backend-app
+  ports:
+    - port: 8082
+      targetPort: 8082
+      nodePort: 30008
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: corphub-frontend-deployment
+  labels:
+    app: corphub-frontend-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: corphub-frontend-app
+  template:
+    metadata:
+      labels:
+        app: corphub-frontend-app
+    spec:
+      containers:
+        - name: corphub-frontend-app
+          image: corphub/corphub-frontend:1.14.0
+          ports:
+            - containerPort: 5000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: corphub-frontend-service
+spec:
+  selector:
+    app: corphub-frontend-app
+  ports:
+    - port: 5000
+      targetPort: 5000
+      nodePort: 30011
+  type: LoadBalancer
