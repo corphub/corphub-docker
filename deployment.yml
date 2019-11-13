@@ -1,3 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: es-config
+data:
+  elasticsearch.yml: |
+    http.host: "0.0.0.0"
+    http.cors.enabled: "true"
+    http.cors.allow-credentials: "true"
+    http.cors.allow-origin: "*"
+    http.cors.allow-headers: "X-Requested-With, X-Auth-Token, Content-Type, Content-Length, Authorization, Access-Control-Allow-Headers, Accept"
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -30,20 +42,18 @@ spec:
           volumeMounts:
             - name: elasticsearch-storage
               mountPath: /usr/share/elasticsearch/data
-          env:
-            - name: http.host
-              value: "0.0.0.0"
-            - name: http.cors.enabled
-              value: "true"
-            - name: http.cors.allow-credentials
-              value: "true"
-            - name: http.cors.allow-origin
-              value: "*"
-            - name: http.cors.allow-headers
-              value: "X-Requested-With, X-Auth-Token, Content-Type, Content-Length, Authorization, Access-Control-Allow-Headers, Accept"
+            - name: elasticsearch-config
+              mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
+              subPath: elasticsearch.yml
       volumes:
         - name: elasticsearch-storage
           emptyDir: {}
+        - name: elasticsearch-config
+          configMap:
+            name: es-config
+            items:
+              - key: elasticsearch.yml
+                path: elasticsearch.yml  
 ---
 apiVersion: v1
 kind: Service
@@ -121,7 +131,7 @@ spec:
     spec:
       containers:
         - name: corphub-frontend-app
-          image: corphub/corphub-frontend:1.14.0
+          image: corphub/corphub-frontend
           ports:
             - containerPort: 5000
 ---
