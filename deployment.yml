@@ -227,12 +227,11 @@ kind: Service
 metadata:
   name: kong-postgres-service
 spec:
-  type: NodePort
+  selector:
+    app: kong-postgres-app
   ports:
-    - name: "5432"
-      port: 5432
-  selector:
-    app: kong-postgres-app
+    - port: 5432
+  type: NodePort
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -252,7 +251,7 @@ spec:
     spec:
       containers:
         - name: corphub-kong-app
-          image: corphub/corphub-kong
+          image: corphub/corphub-kong:1.4.0-centos
           ports:
             - containerPort: 8000
             - containerPort: 8001
@@ -292,9 +291,13 @@ spec:
   selector:
     app: corphub-kong-app
   ports:
-    - listener: 8000
-      listnerAPI: 8001
-      lister_ssl: 8443
-      listerAPI_ssl: 8444
+    - port: 8000
+      name: "listener"
+    - port: 8001
+      name: "listener-apo"
+    - port: 8443
+      name: "listener-ssl"
+    - port: 8444
+      name: "listener-api-ssl"
   type: LoadBalancer
----
+# ---
