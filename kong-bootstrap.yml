@@ -1,0 +1,57 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-backend
+  annotations:
+    plugins.konghq.com: kong-backend-oidc
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /graphql
+        backend:
+          serviceName: corphub-backend-service
+          servicePort: 8082   
+      - path: /search
+        backend:
+          serviceName: elasticsearch-service
+          servicePort: 9200   
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: kong-backend-oidc
+  labels:
+    global: "true"
+config:
+  client_id: kong
+  client_secret: 1051d440-d67f-4e29-b7f5-7bfe8b9a82d0
+  discovery: http://10.111.236.19:8080/auth/realms/master/.well-known/openid-configuration
+plugin: oidc
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-frontend
+  annotations:
+    plugins.konghq.com: kong-frontend-oidc
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /
+        backend:
+          serviceName: corphub-frontend-service
+          servicePort: 5000   
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: kong-frontend-oidc
+  labels:
+    global: "true"
+config:
+  client_id: corphub
+  client_secret: 98f0c132-dcac-44ea-8e4c-b2e88cdd9a69
+  discovery: http://10.111.236.19:8080/auth/realms/master/.well-known/openid-configuration
+plugin: oidc

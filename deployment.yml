@@ -35,7 +35,7 @@ spec:
             privileged: true
       containers:
         - name: elasticsearch-app
-          image: elasticsearch:5
+          image: elasticsearch:7.4.2
           ports:
             - containerPort: 9200
             - containerPort: 9300
@@ -147,157 +147,154 @@ spec:
       targetPort: 5000
       nodePort: 30011
   type: LoadBalancer
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: kong-postgres-config
-  labels:
-    app: kong-postgres
-data:
-  POSTGRES_DB: kong-db
-  POSTGRES_USER: kong
-  POSTGRES_PASSWORD: ""
----
-kind: PersistentVolume
-apiVersion: v1
-metadata:
-  name: kong-postgres-pv-volume
-  labels:
-    type: local
-    app: kong-postgres
-spec:
-  storageClassName: manual
-  capacity:
-    storage: 1Gi
-  accessModes:
-    - ReadWriteMany
-  hostPath:
-    path: "/mnt/data"
----
-kind: PersistentVolumeClaim
-apiVersion: v1
-metadata:
-  name: kong-postgres-pv-claim
-  labels:
-    app: kong-postgres
-spec:
-  storageClassName: manual
-  accessModes:
-    - ReadWriteMany
-  resources:
-    requests:
-      storage: 1Gi
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: kong-postgres-deployment
-  labels:
-    app: kong-postgres-app
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: kong-postgres-app
-  template:
-    metadata:
-      labels:
-        app: kong-postgres-app
-    spec:
-      containers:
-        - name: kong-postgres-app
-          image: postgres:10.4
-          imagePullPolicy: "IfNotPresent"
-          ports:
-            - containerPort: 5432
-          envFrom:
-            - configMapRef:
-                name: kong-postgres-config
-          volumeMounts:
-            - mountPath: /var/lib/postgresql/data
-              name: kong-postgredb
-      volumes:
-        - name: kong-postgredb
-          persistentVolumeClaim:
-            claimName: kong-postgres-pv-claim
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: kong-postgres-service
-spec:
-  selector:
-    app: kong-postgres-app
-  ports:
-    - port: 5432
-  type: NodePort
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: corphub-kong
-  labels:
-    app: corphub-kong-app
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: corphub-kong-app
-  template:
-    metadata:
-      labels:
-        app: corphub-kong-app
-    spec:
-      containers:
-        - name: corphub-kong-app
-          image: corphub/corphub-kong:1.4.0-centos
-          ports:
-            - containerPort: 8000
-            - containerPort: 8001
-            - containerPort: 8443
-            - containerPort: 8444
-          env:
-            - name: KONG_DATABASE
-              value: "postgres"
-            - name: KONG_PG_HOST
-              value: "kong-postgres"
-            - name: KONG_PG_PORT
-              value: "5432"
-            - name: KONG_PG_DATABASE
-              value: "kong-db"
-            - name: KONG_PROXY_ACCESS_LOG
-              value: "/dev/stdout"
-            - name: KONG_ADMIN_ACCESS_LOG
-              value: "/dev/stdout"
-            - name: KONG_PG_HOST
-              value: "kong-postgres"
-            - name: KONG_PROXY_ERROR_LOG
-              value: "/dev/stderr"
-            - name: KONG_ADMIN_ERROR_LOG
-              value: "/dev/stderr"
-            - name: KONG_PROXY_LISTEN
-              value: "0.0.0.0:8000, 0.0.0.0:8443 ssl"
-            - name: KONG_ADMIN_LISTEN
-              value: "0.0.0.0:8001, 0.0.0.0:8444 ssl"  
-            - name: KONG_PLUGINS
-              value: "oidc"  
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: corphub-kong-service
-spec:
-  selector:
-    app: corphub-kong-app
-  ports:
-    - port: 8000
-      name: "listener"
-    - port: 8001
-      name: "listener-apo"
-    - port: 8443
-      name: "listener-ssl"
-    - port: 8444
-      name: "listener-api-ssl"
-  type: LoadBalancer
 # ---
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   name: kong-postgres-config
+#   labels:
+#     app: kong-postgres
+# data:
+#   POSTGRES_DB: kong-db
+#   POSTGRES_USER: kong
+#   POSTGRES_PASSWORD: ""
+# ---
+# kind: PersistentVolume
+# apiVersion: v1
+# metadata:
+#   name: kong-postgres-pv-volume
+#   labels:
+#     type: local
+#     app: kong-postgres
+# spec:
+#   storageClassName: manual
+#   capacity:
+#     storage: 1Gi
+#   accessModes:
+#     - ReadWriteMany
+#   hostPath:
+#     path: "/mnt/data"
+# ---
+# kind: PersistentVolumeClaim
+# apiVersion: v1
+# metadata:
+#   name: kong-postgres-pv-claim
+#   labels:
+#     app: kong-postgres
+# spec:
+#   storageClassName: manual
+#   accessModes:
+#     - ReadWriteMany
+#   resources:
+#     requests:
+#       storage: 1Gi
+# ---
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: kong-postgres-deployment
+#   labels:
+#     app: kong-postgres-app
+# spec:
+#   replicas: 1
+#   selector:
+#     matchLabels:
+#       app: kong-postgres-app
+#   template:
+#     metadata:
+#       labels:
+#         app: kong-postgres-app
+#     spec:
+#       containers:
+#         - name: kong-postgres-app
+#           image: postgres:10.4
+#           imagePullPolicy: "IfNotPresent"
+#           ports:
+#             - containerPort: 5432
+#           envFrom:
+#             - configMapRef:
+#                 name: kong-postgres-config
+#           volumeMounts:
+#             - mountPath: /var/lib/postgresql/data
+#               name: kong-postgredb
+#       volumes:
+#         - name: kong-postgredb
+#           persistentVolumeClaim:
+#             claimName: kong-postgres-pv-claim
+# ---
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: kong-postgres-service
+# spec:
+#   selector:
+#     app: kong-postgres-app
+#   ports:
+#     - port: 5432
+#   type: NodePort
+# ---
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   name: corphub-kong-config
+#   labels:
+#     app: corphub-kong-app
+# data:
+#   KONG_DATABASE: postgres
+#   KONG_PG_HOST: kong-postgres-service
+#   KONG_PG_PORT: "5432"
+#   KONG_PG_DATABASE: kong-db
+#   KONG_PROXY_ACCESS_LOG: /dev/stdout
+#   KONG_ADMIN_ACCESS_LOG: /dev/stdout
+#   KONG_PROXY_ERROR_LOG: /dev/stderr
+#   KONG_ADMIN_ERROR_LOG: /dev/stderr
+#   KONG_PROXY_LISTEN: "0.0.0.0:8000, 0.0.0.0:8443 ssl"
+#   KONG_ADMIN_LISTEN: "0.0.0.0:8001, 0.0.0.0:8444 ssl"  
+#   KONG_PLUGINS: oidc
+# ---
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: corphub-kong
+#   labels:
+#     app: corphub-kong-app
+# spec:
+#   replicas: 1
+#   selector:
+#     matchLabels:
+#       app: corphub-kong-app
+#   template:
+#     metadata:
+#       labels:
+#         app: corphub-kong-app
+#     spec:
+#       containers:
+#         - name: corphub-kong-app
+#           image: corphub/corphub-kong:1.4.0-centos
+#           ports:
+#             - containerPort: 8000
+#             - containerPort: 8001
+#             - containerPort: 8443
+#             - containerPort: 8444
+#           envFrom:
+#             - configMapRef:
+#                 name: corphub-kong-config
+# ---
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: corphub-kong-service
+# spec:
+#   selector:
+#     app: corphub-kong-app
+#   ports:
+#     - port: 8000
+#       name: "listener"
+#     - port: 8001
+#       name: "listener-apo"
+#     - port: 8443
+#       name: "listener-ssl"
+#     - port: 8444
+#       name: "listener-api-ssl"
+#   type: LoadBalancer
+# # ---
